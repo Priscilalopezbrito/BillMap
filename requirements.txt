@@ -1,0 +1,5 @@
+flask
+flask-restx
+python-dotenv
+pytest
+flask_bcrypt

@@ -1,40 +1,68 @@
 #!/usr/bin/env python3
-
 from flask import Flask, jsonify
-from database import db
 from flask_cors import CORS
+from flask_migrate import Migrate
+from database import db
 from config import Config
-from models.user import User
-from models.bill import Bill
-from models.reminder import Reminder
+from flask_bcrypt import Bcrypt
 
-from routes.user_routes import user_bp
-from routes.bill_routes import bill_bp
+from routes.user_routes import api as user_ns
+#  from routes.bill_routes import api as bill_ns
+#  from routes.reminder_routes import api as reminder_ns
 
-#from routes.reminder_routes import reminder_bp
+from flask_restx import Api
+
+bcrypt = Bcrypt()
+
 
 def create_app():
+    """Initialize Flask application"""
     app = Flask(__name__)
+
+    # Load Configuration
     app.config.from_object(Config)
     CORS(app)
-    
+
+    #  Initialize Database & Migrations
     db.init_app(app)
-    
-    app.register_blueprint(user_bp, url_prefix="/users")
-    app.register_blueprint(bill_bp, url_prefix="/bills")
-    #app.register_blueprint(reminder_bp, url_prefix="/reminders")
-    
-    
-    @app.route("/health", methods=["GET"])
-    def health_check():
-        return jsonify({"status": "ok"}), 200
-    
+    bcrypt.init_app(app)
+    Migrate(app, db)
+
+    #  Bearer Authentication for Swagger
+    authorizations = {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+        }
+    }
+
+    #  Initialize API with Authentication in Swagger
+    api = Api(
+        app,
+        version="1.0",
+        title="BillMAP API",
+        description="BillMAP Application API",
+        authorizations=authorizations,
+        security="BearerAuth",
+        doc="/"  # Swagger available at /
+    )
+
+    #  Namespaces
+    api.add_namespace(user_ns, path="/api/v1/users")
+    #  api.add_namespace(bill_ns, path="/api/v1/bills")
+
+    @app.route("/", methods=["GET"])
+    def home():
+        """Homepage"""
+        return jsonify({"message": "Welcome to BillMap API! Use /api/v1/users or /api/v1/bills"}), 200
+
     return app
+
 
 if __name__ == "__main__":
     app = create_app()
-    
     with app.app_context():
         db.create_all()
-    
-    app.run(debug=True)
+        print("Database tables checked/created successfully!")
+    app.run(debug=True, port=5001)

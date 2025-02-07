@@ -1,62 +1,105 @@
 #!/usr/bin/env python3
 
-from flask import Blueprint, request, jsonify
-from services.user_service import UserService
+from flask import request
+from flask_restx import Namespace, Resource, fields
+from services.user_service import UserService  # UserService logic (facade)
 
-user_bp = Blueprint("user_bp", __name__)
+# User Namespace
+api = Namespace('users', description='User operations')
 
-@user_bp.route("/register", methods=["POST"])
-def register_user():
-    data = request.get_json()
-    name = data.get("name")
-    email = data.get("email")
-    password = data.get("password")
+# User Models
+user_model = api.model('User', {
+    'first_name': fields.String(required=True, description='First name'),
+    'last_name': fields.String(required=True, description='Last name'),
+    'email': fields.String(required=True, description='Email'),
+    'password': fields.String(required=True, description='Password')
+})
 
-    if not name or not email or not password:
-        return jsonify({"error": "All fields are required"}), 400
+update_user_model = api.model('UpdateUser', {
+    'first_name': fields.String(description='First name'),
+    'last_name': fields.String(description='Last name'),
+    'email': fields.String(description='New email')
+})
 
-    user = UserService.create_user(name, email, password)
-    if user is None:
-        return jsonify({"error": "Email already exists"}), 409  # Conflict
 
-    return jsonify({"message": "User registered successfully", "user_id": user.id}), 201
+def format_user(user):
+    """Helper function to format user responses"""
+    return {
+        "id": str(user.id),
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email
+    }
 
-@user_bp.route("/login", methods=["POST"])
-def login_user():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
 
-    user = UserService.authenticate_user(email, password)
-    if not user:
-        return jsonify({"error": "Invalid email or password"}), 401  # Unauthorized
+@api.route('/')
+class UserList(Resource):
+    @api.expect(user_model, validate=True)
+    @api.response(201, 'User successfully created')
+    @api.response(400, 'Email already registered')
+    def post(self):
+        """Create new user"""
+        user_data = request.get_json()
+        if UserService.get_user_by_email(user_data['email']):
+            return {"error": "Email already registered"}, 400
 
-    return jsonify({"message": "Login successful", "user_id": user.id}), 200
+        new_user = UserService.create_user(
+            user_data['first_name'], user_data['last_name'],
+            user_data['email'], user_data['password']
+        )
+        return format_user(new_user), 201
 
-@user_bp.route("/<int:user_id>", methods=["GET"])
-def get_user(user_id):
-    user = UserService.get_user_by_id(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
 
-    return jsonify({"id": user.id, "name": user.name, "email": user.email}), 200
+@api.route('/<string:user_id>')
+class UserResource(Resource):
+    @api.response(200, 'User details retrieved successfully')
+    @api.response(404, 'User not found')
+    def get(self, user_id):
+        """Get user by ID"""
+        user = UserService.get_user_by_id(user_id)
 
-@user_bp.route("/<int:user_id>", methods=["PUT"])
-def update_user(user_id):
-    data = request.get_json()
-    name = data.get("name")
-    email = data.get("email")
+        if not user:
+            return {"error": "User not found"}, 404
 
-    updated_user = UserService.update_user(user_id, name, email)
-    if not updated_user:
-        return jsonify({"error": "User not found or email already in use"}), 404
+        return format_user(user), 200
 
-    return jsonify({"message": "User updated successfully"}), 200
 
-@user_bp.route("/<int:user_id>", methods=["DELETE"])
-def delete_user(user_id):
-    deleted_user = UserService.delete_user(user_id)
-    if not deleted_user:
-        return jsonify({"error": "User not found"}), 404
+@api.route('/user-list')
+class Users(Resource):
+    @api.response(200, 'List of users retrieved successfully')
+    def get(self):
+        """Get all users"""
+        users = UserService.get_all_users()
+        return [format_user(user) for user in users], 200
 
-    return jsonify({"message": "User deleted successfully"}), 200
+
+@api.route('/update/<string:user_id>')
+class UpdateUser(Resource):
+    @api.expect(update_user_model, validate=True)
+    @api.response(200, 'User updated successfully')
+    @api.response(400, 'Email already in use')
+    @api.response(404, 'User not found')
+    def put(self, user_id):
+        """Update user information"""
+        user_data = request.get_json()
+
+        # Check if email is already in use, if not update
+        if 'email' in user_data and UserService.get_user_by_email(user_data['email']):
+            return {"error": "Email already in use"}, 400
+
+        updated_user = UserService.update_user(user_id, **user_data)
+        if not updated_user:
+            return {"error": "User not found"}, 404
+
+        return format_user(updated_user), 200
+
+
+@api.route('/delete/<string:user_id>')
+class DeleteUser(Resource):
+    @api.response(200, 'User deleted successfully')
+    @api.response(404, 'User not found')
+    def delete(self, user_id):
+        """Soft delete a user"""
+        if UserService.delete_user(user_id):
+            return {"message": "User deleted successfully"}, 200
+        return {"error": "User not found"}, 404
