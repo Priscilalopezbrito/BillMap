@@ -16,12 +16,9 @@ class User(BaseModel):
     password_hash = db.Column(db.String(256), nullable=False)
 
     def set_password(self, password):
+        """Hash and store password"""
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
 
     def check_password(self, password):
+        """Verify provided password against stored hash"""
         return bcrypt.check_password_hash(self.password_hash, password)
-
-    @classmethod
-    def get_active_users(cls):
-        """Return only users that have not been deleted."""
-        return cls.get_active()

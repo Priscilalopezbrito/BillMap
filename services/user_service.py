@@ -1,4 +1,5 @@
 from models.user import User
+from database import db
 
 
 class UserService:
@@ -16,7 +17,7 @@ class UserService:
 
     @staticmethod
     def get_user_by_id(user_id):
-        return User.get_active().filter_by(id=user_id).first()
+        return User.query.filter_by(id=user_id).first()
 
     @staticmethod
     def get_user_by_email(email):
@@ -24,38 +25,39 @@ class UserService:
 
     @staticmethod
     def authenticate_user(email, password):
-        user = User.get_active().filter_by(email=email).first()
+        """Authenticate a user by email and password"""
+        user = User.query.filter_by(email=email).first()
+
         if user and user.check_password(password):
             return user
         return None
 
     @staticmethod
-    def update_user(user_id, first_name=None, last_name=None, email=None):
-        user = User.get_active().filter_by(id=user_id).first()
+    def update_user(user_id, **kwargs):
+        """Update user details"""
+        user = UserService.get_user_by_id(user_id)
         if not user:
             return None
 
-        update_data = {}
-        if first_name:
-            update_data["first_name"] = first_name
-        if last_name:
-            update_data["last_name"] = last_name
-        if email and not User.query.filter_by(email=email).first():
-            update_data["email"] = email
+        for key, value in kwargs.items():
+            if hasattr(user, key) and value:
+                setattr(user, key, value)
 
-        user.update(update_data)
+        db.session.commit()
         return user
 
     @staticmethod
     def delete_user(user_id):
-        user = User.get_active().filter_by(id=user_id).first()
+        """Permanently delete a user"""
+        user = UserService.get_user_by_id(user_id)
         if not user:
             return None
 
-        user.soft_delete()
-        return user
+        db.session.delete(user)
+        db.session.commit()
+        return True
 
     @staticmethod
     def get_all_users():
 
-        return User.get_active().all()
+        return User.query.all()

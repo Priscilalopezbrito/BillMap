@@ -2,6 +2,7 @@
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from services.user_service import UserService  # UserService logic (facade)
 
 # User Namespace
@@ -34,6 +35,7 @@ def format_user(user):
 
 @api.route('/')
 class UserList(Resource):
+
     @api.expect(user_model, validate=True)
     @api.response(201, 'User successfully created')
     @api.response(400, 'Email already registered')
@@ -52,6 +54,7 @@ class UserList(Resource):
 
 @api.route('/<string:user_id>')
 class UserResource(Resource):
+    @jwt_required()
     @api.response(200, 'User details retrieved successfully')
     @api.response(404, 'User not found')
     def get(self, user_id):
@@ -66,6 +69,7 @@ class UserResource(Resource):
 
 @api.route('/user-list')
 class Users(Resource):
+    @jwt_required()
     @api.response(200, 'List of users retrieved successfully')
     def get(self):
         """Get all users"""
@@ -75,12 +79,24 @@ class Users(Resource):
 
 @api.route('/update/<string:user_id>')
 class UpdateUser(Resource):
+    @jwt_required()
     @api.expect(update_user_model, validate=True)
     @api.response(200, 'User updated successfully')
     @api.response(400, 'Email already in use')
+    @api.response(403, 'Unauthorized')
     @api.response(404, 'User not found')
     def put(self, user_id):
         """Update user information"""
+
+        current_user = get_jwt_identity()
+        print("DEBUG: JWT Identity:", current_user)  # Print the decoded JWT identity
+
+        if not isinstance(current_user, dict):
+            return {"error": "Invalid token format"}, 400  # Return an error if it's not a dictionary
+
+        if current_user["id"] != user_id:
+            return {"error": "Unauthorized action."}, 403
+
         user_data = request.get_json()
 
         # Check if email is already in use, if not update
@@ -96,10 +112,17 @@ class UpdateUser(Resource):
 
 @api.route('/delete/<string:user_id>')
 class DeleteUser(Resource):
+    @jwt_required()
     @api.response(200, 'User deleted successfully')
+    @api.response(403, 'Unauthorized')
     @api.response(404, 'User not found')
     def delete(self, user_id):
         """Soft delete a user"""
+
+        current_user = get_jwt_identity()
+        if current_user["id"] != user_id:
+            return {"error": "Unauthorized action."}, 403
+
         if UserService.delete_user(user_id):
             return {"message": "User deleted successfully"}, 200
         return {"error": "User not found"}, 404
