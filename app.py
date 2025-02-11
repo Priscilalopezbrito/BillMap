@@ -2,7 +2,6 @@
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_restx import Api
@@ -10,15 +9,14 @@ from flask_restx import Api
 from config import Config
 from database import db
 from routes.user_routes import api as user_ns
+from routes.bill_routes import api as bill_ns
 from routes.auth import api as auth_ns
-
-# from routes.bill_routes import api as bill_ns
 # from routes.reminder_routes import api as reminder_ns
 
 # Initialize Flask extensions
 bcrypt = Bcrypt()
 jwt = JWTManager()
-migrate = Migrate()
+
 
 
 def create_app():
@@ -32,7 +30,6 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    migrate.init_app(app, db)
     CORS(app)
 
     # Bearer Authentication for Swagger
@@ -59,7 +56,7 @@ def create_app():
     # Namespaces
     api.add_namespace(user_ns, path="/api/v1/users")
     api.add_namespace(auth_ns, path="/api/v1/auth")
-    # api.add_namespace(bill_ns, path="/api/v1/bills")
+    api.add_namespace(bill_ns, path="/api/v1/bills")
 
     @app.route("/", methods=["GET"])
     def home():
