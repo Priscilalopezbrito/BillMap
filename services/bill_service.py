@@ -4,75 +4,56 @@ from models.bill import Bill
 from database import db
 from datetime import datetime
 
+
 class BillService:
     
     @staticmethod
-    def create_bill(user_id, amount, due_date, description=None, minimum_payment=None):
-        
-        if isinstance(due_date, str):
-            due_date = datetime.fromisoformat(due_date).date()
-            
+    def add_debt(user_id, creditor, amount, due_date, min_payment=0.0, description=None):
+        # Validate and convert due_date to a proper date object
+        try:
+            if isinstance(due_date, str):
+                due_date = datetime.strptime(due_date, "%d/%m/%Y").date()  # Convert to date object
+        except ValueError:
+            raise ValueError("Invalid date format. Please use DD/MM/YYYY.")  # Throw a clear error
+
         new_bill = Bill(
             user_id=user_id,
+            creditor=creditor,
             amount=amount,
-            due_date=due_date,
-            description=description,
-            minimum_payment=minimum_payment
+            due_date=due_date,  # Now it's a valid date object
+            min_payment=min_payment,
+            description=description
         )
+
         new_bill.save()
         return new_bill
-    
+
     @staticmethod
-    def get_bill_by_id(bill_id):
-        return db.session.get(Bill, bill_id)
-    
+    def list_all_debts(user_id):
+        """Retrieve all debts for a user"""
+        return Bill.query.filter_by(user_id=user_id, is_deleted=False).all()
+
     @staticmethod
-    def get_bills_by_user(user_id):
-        return Bill.query.filter_by(user_id=user_id).all()
-    
+    def get_debt_info(debt_id):
+        """Get specific debt information"""
+        return Bill.query.filter_by(id=debt_id, is_deleted=False).first()
+
     @staticmethod
-    def mark_bill_as_paid(bill_id):
-        bill = db.session.get(Bill, bill_id)
-        if not bill:
+    def update_debt(debt_id, **kwargs):
+        """Update debt details"""
+        debt = BillService.get_debt_info(debt_id)
+        if not debt:
+            return None
+
+        debt.update_bill(**kwargs)
+        return debt
+
+    @staticmethod
+    def delete_debt(debt_id):
+        """Soft delete a debt (mark as deleted)"""
+        debt = BillService.get_debt_info(debt_id)
+        if not debt:
             return None
         
-        bill.mark_as_paid()
-        return bill
-    
-    @staticmethod
-    def check_if_bill_is_overdue(bill_id):
-        bill = db.session.get(Bill, bill_id)
-        if not bill:
-            return None
-        
-        return bill.is_overdue()
-    
-    @staticmethod
-    def update_bill(bill_id, amount=None, due_date=None, description=None, minimum_payment=None):
-        bill = db.session.get(Bill, bill_id)
-        if not bill:
-            return None
-        
-        if amount is not None:
-            bill.amount = amount
-            
-        if due_date is not None:
-            bill.due_date = due_date
-            
-        if description is not None:
-            bill.description = description
-        
-        if minimum_payment is not None:
-            bill.minimum_payment = minimum_payment
-            
-        db.session.commit()
-        return bill
-    
-    @staticmethod
-    def delete_bill(bill_id):
-        bill = db.session.get(Bill, bill_id)
-        if not bill:
-            return None
-        
-        bill.soft_delete()
-        return bill
+        debt.soft_delete()
+        return True
