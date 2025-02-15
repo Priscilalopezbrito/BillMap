@@ -10,8 +10,8 @@ from config import Config
 from database import db
 from routes.user_routes import api as user_ns
 from routes.bill_routes import api as bill_ns
+from routes.reminder_routes import api as reminder_ns
 from routes.auth import api as auth_ns
-# from routes.reminder_routes import api as reminder_ns
 
 # Initialize Flask extensions
 bcrypt = Bcrypt()
@@ -57,6 +57,7 @@ def create_app():
     api.add_namespace(user_ns, path="/api/v1/users")
     api.add_namespace(auth_ns, path="/api/v1/auth")
     api.add_namespace(bill_ns, path="/api/v1/bills")
+    api.add_namespace(reminder_ns, path="/api/v1/reminder")
 
     @app.route("/", methods=["GET"])
     def home():
