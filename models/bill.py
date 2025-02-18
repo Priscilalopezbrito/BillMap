@@ -5,6 +5,7 @@ from database import db
 from datetime import datetime
 from sqlalchemy.types import TypeDecorator, Date
 
+
 class DateConverter(TypeDecorator):
     """Custom Date Type that ensures correct format."""
     impl = Date

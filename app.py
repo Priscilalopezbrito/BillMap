@@ -18,7 +18,6 @@ bcrypt = Bcrypt()
 jwt = JWTManager()
 
 
-
 def create_app():
     """Initialize Flask application and extensions"""
     app = Flask(__name__)
