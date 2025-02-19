@@ -4,7 +4,6 @@ python-dotenv
 pytest
 flask_bcrypt
 SQLAlchemy
-
 plaid-python
 itsdangerous
 werkzeug
