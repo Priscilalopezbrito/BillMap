@@ -1,6 +1,10 @@
-flask~=3.0.3
+Flask
 flask-restx
-python-dotenv~=1.0.1
-pytest~=8.3.4
+python-dotenv
+pytest
 flask_bcrypt
-SQLAlchemy~=2.0.36
+SQLAlchemy
+
+plaid-python
+itsdangerous
+werkzeug

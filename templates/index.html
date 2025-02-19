@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect to Plaid</title>
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+</head>
+<body>
+    <h1>Connect Your Bank with Plaid</h1>
+    <button id="connectPlaid">Connect to Plaid</button>
+
+    <script>
+        async function openPlaidLink() {
+        try {
+            const response = await fetch("http://127.0.0.1:5001/api/v1/plaid/create_link_token");
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = await response.json();  // ✅ Ensure it's parsed as JSON
+
+            const linkHandler = Plaid.create({
+                token: data.link_token,
+                onSuccess: async function (public_token, metadata) {
+                    console.log("Public Token:", public_token);
+
+                    const exchangeResponse = await fetch("http://127.0.0.1:5001/api/v1/plaid/exchange_token", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ public_token })
+                    });
+
+                    const exchangeData = await exchangeResponse.json();
+                    console.log("Access Token:", exchangeData.access_token);
+                }
+            });
+
+            linkHandler.open();
+        } catch (error) {
+            console.error("Error fetching link token:", error);
+        }
+    }
+
+    document.getElementById("connectPlaid").addEventListener("click", openPlaidLink);
+    </script>
+</body>
+</html>
