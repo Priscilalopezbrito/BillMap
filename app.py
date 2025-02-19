@@ -65,7 +65,7 @@ def create_app():
         """Home page"""
         return jsonify({"message": "Welcome to BillMap API! Use /api/v1/users or /api/v1/bills"}), 200
 
-    # ✅ Serve the Frontend HTML
+    # Serve the Frontend HTML
     @app.route("/plaid-frontend")
     def serve_frontend():
         return render_template("index.html")
